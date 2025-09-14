@@ -1,4 +1,4 @@
-基于OpenSubsonic协议的
+基于OpenSubsonic协议的bilibili音频后端
 
 
 
