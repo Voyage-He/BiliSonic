@@ -66,7 +66,7 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("Search failed: %v", err)
 	}
 
-	log.Println(results[1])
+	log.Println(results[0].Duration)
 }
 
 func TestGetVideoInfo(t *testing.T) {

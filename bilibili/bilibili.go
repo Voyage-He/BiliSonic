@@ -61,7 +61,7 @@ func (client *BilibiliClient) Search(keyword string) ([]BilibiliVideo, error) {
 }
 
 // GetVideoInfo 获取视频信息
-func (client *BilibiliClient) GetVideoInfo(bvid string) ([]string, error) {
+func (client *BilibiliClient) GetVideoInfo(bvid string) (*BilibiliVideo, error) {
 	queryURL := "https://api.bilibili.com/x/web-interface/view"
 	queryParams := url.Values{}
 	queryParams.Add("bvid", bvid)
@@ -81,13 +81,27 @@ func (client *BilibiliClient) GetVideoInfo(bvid string) ([]string, error) {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}
 
-	data := jsonResponse["data"].(map[string]interface{})
-	return []string{
-		data["bvid"].(string),  // BVID
-		data["title"].(string), // 视频标题
-		data["owner"].(map[string]interface{})["name"].(string), // 作者
-		data["pic"].(string), // 视频封面
+	video := jsonResponse["data"].(map[string]interface{})
+
+	seconds := int(video["duration"].(float64))
+	owner := video["owner"].(map[string]interface{})
+	return &BilibiliVideo{
+		ID:       bvid,
+		Title:    removeHTMLTags(video["title"].(string)),
+		AVID:     int(video["aid"].(float64)),
+		Author:   owner["name"].(string),
+		MID:      int(owner["mid"].(float64)),
+		Pic:      video["pic"].(string),
+		Duration: seconds,
 	}, nil
+
+	// return &BilibiliVideo{
+	// 	ID:       bvid,                                                    // BVID
+	// 	Title:    removeHTMLTags(video["title"].(string)),                 // 视频标题
+	// 	Author:   data["owner"].(map[string]interface{})["name"].(string), // 作者
+	// 	Pic:      data["pic"].(string),                                    // 视频封面
+	// 	Duration: 678,
+	// }, nil
 }
 
 func (client *BilibiliClient) GetCoverArt(coverArt string) (io.ReadCloser, error) {
@@ -204,12 +218,13 @@ func (client *BilibiliClient) GetAudioStream(id string) (io.ReadCloser, string, 
 
 // BilibiliVideo 示例模型定义
 type BilibiliVideo struct {
-	ID     string
-	Title  string
-	AVID   int
-	Author string
-	MID    int
-	Pic    string
+	ID       string
+	Title    string
+	AVID     int
+	Author   string
+	MID      int
+	Pic      string
+	Duration int
 }
 
 // BilibiliVideoModelFromList 将 JSON 转为 BilibiliVideoModel 的切片
@@ -217,17 +232,19 @@ func BilibiliVideoModelFromList(data []interface{}) []BilibiliVideo {
 	result := []BilibiliVideo{}
 	for _, item := range data {
 		video := item.(map[string]interface{})
+		seconds, _ := convertToSeconds(video["duration"].(string))
 		if video["bvid"].(string) == "" {
 			continue
 		}
 		bvid := strings.Split(video["bvid"].(string), "BV")[1]
 		result = append(result, BilibiliVideo{
-			ID:     bvid,
-			Title:  removeHTMLTags(video["title"].(string)),
-			AVID:   int(video["aid"].(float64)),
-			Author: video["author"].(string),
-			MID:    int(video["mid"].(float64)),
-			Pic:    video["pic"].(string),
+			ID:       bvid,
+			Title:    removeHTMLTags(video["title"].(string)),
+			AVID:     int(video["aid"].(float64)),
+			Author:   video["author"].(string),
+			MID:      int(video["mid"].(float64)),
+			Pic:      video["pic"].(string),
+			Duration: seconds,
 		})
 	}
 	return result
@@ -237,4 +254,23 @@ func removeHTMLTags(input string) string {
 	// Regular expression to match HTML tags
 	re := regexp.MustCompile(`<[^>]*>`)
 	return re.ReplaceAllString(input, "")
+}
+
+func convertToSeconds(duration string) (int, error) {
+	/// string(MM:SS) to int(second)
+	parts := strings.Split(duration, ":")
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid format")
+	}
+	minutes, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid minutes: %v", err)
+	}
+	seconds, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid seconds: %v", err)
+	}
+
+	seconds = minutes*60 + seconds
+	return seconds, nil
 }

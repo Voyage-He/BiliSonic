@@ -10,15 +10,84 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const VERSION = "1.16.1"
+const SERVER_VERSION = "0.0.1"
+
+type SubsonicResponse struct {
+	Status        string       `json:"status"`
+	Version       string       `json:"version"`
+	Type          string       `json:"type"`
+	ServerVersion string       `json:"serverVersion"`
+	OpenSubsonic  bool         `json:"openSubsonic"`
+	SearchResult2 SearchResult `json:"searchResult2"`
+	SearchResult3 SearchResult `json:"searchResult3"`
+	Starred2      Starred      `json:"starred2"`
+}
+
+type Response struct {
+	SubsonicResponse SubsonicResponse `json:"subsonic-response"`
+}
+
+type SearchResult struct {
+	Artist interface{}
+	Album  interface{}
+	Song   []Song `json:"song"`
+}
+
+type Starred = SearchResult
+
+type Song struct {
+	ID          string `json:"id"`
+	IsDir       bool   `json:"isDir"`
+	Title       string `json:"title"`
+	Artist      string `json:"artist"`
+	CoverArt    string `json:"coverArt"`
+	ContentType string `json:"contentType"`
+	Suffix      string `json:"suffix"`
+	Duration    int    `json:"duration"`
+	ArtistID    string `json:"artistId"`
+	Type        string `json:"type"`
+	IsVideo     bool   `json:"isVideo"`
+}
+
+func SongFrom(v *bilibili.BilibiliVideo) Song {
+	return Song{
+		ID:          v.ID,
+		IsDir:       false,
+		Title:       v.Title,
+		Artist:      v.Author,
+		CoverArt:    v.Pic,
+		ContentType: "audio/mpeg",
+		Suffix:      "mp3",
+		Duration:    v.Duration,
+		ArtistID:    v.Author,
+		Type:        "music",
+		IsVideo:     false,
+	}
+}
+
+func createSubsonicOkResponse() Response {
+	return Response{
+		SubsonicResponse: SubsonicResponse{
+			Status:        "ok",
+			Version:       VERSION,
+			Type:          "voyage",
+			ServerVersion: SERVER_VERSION,
+			OpenSubsonic:  true,
+		},
+	}
+
+}
+
 func checkAuth(r *http.Request) bool {
 	user := r.URL.Query().Get("u")
 	pass := r.URL.Query().Get("p")
 	// TODO: 实现更复杂的 token/md5 验证
-	return user == "myuser" && pass == "mypassword"
+	return user == "voyage" && pass == "141592"
 }
 
 func PingHandler(c *gin.Context) {
-	log.Println("pimg invoke")
+	log.Println("ping invoke")
 	res := createSubsonicOkResponse()
 	c.JSON(http.StatusOK, res)
 
