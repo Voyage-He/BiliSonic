@@ -80,15 +80,16 @@ func TestGetVideoInfo(t *testing.T) {
 	log.Println(info)
 }
 
-// func TestGetCovorArt(t *testing.T) {
-// 	client := NewBilibiliClient()
+func TestGetCovorArt(t *testing.T) {
+	client := NewBilibiliClient()
 
-// 	read, err := client.GetCoverArt("//i1.hdslb.com/bfs/archive/803060ec1cca5f294d2bb93afc4827f948721c69.jpg")
+	_, err := client.GetCoverArt("//i1.hdslb.com/bfs/archive/803060ec1cca5f294d2bb93afc4827f948721c69.jpg")
 
-// 	if err != nil {
-// 		t.Fatalf("GetVideoInfo failed: %v", err)
-// 	}
-// }
+	if err != nil {
+		t.Fatalf("GetVideoInfo failed: %v", err)
+	}
+	// log.Println(read[:10])
+}
 
 func TestGetCid(t *testing.T) {
 	client := NewBilibiliClient()

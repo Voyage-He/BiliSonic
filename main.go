@@ -30,10 +30,11 @@ func main() {
 	router.GET("rest/scrobble.view", PingHandler)
 	router.GET("rest/getStarred2.view", starredHandler)
 
+	// ios音流app
 	router.GET("/rest/ping", PingHandlerXML)
 	router.GET("/rest/search2", Search2HandlerXML)
 	router.GET("/rest/search3", Search3HandlerXML)
-	// router.GET("/rest/getCoverArt", GetCoverArtHandlerXML)
+	router.GET("/rest/getCoverArt", GetCoverArtHandlerXML)
 	router.GET("/rest/getSong", GetSongXML)
 	// router.HEAD("/rest/getCoverArt", headCoverArtHandler)
 	router.GET("/rest/stream", StreamHandlerXML)

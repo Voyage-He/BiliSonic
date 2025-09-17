@@ -206,6 +206,10 @@ func GetCoverArtHandlerXML(c *gin.Context) {
 	cliAny, _ := c.Get("client")
 	client := cliAny.(*bilibili.BilibiliClient)
 	id := c.Query("id")
+	log.Println("id:" + id)
+	if id == "al-" {
+		return
+	}
 
 	file, err := client.GetCoverArt(id)
 	if err != nil {
