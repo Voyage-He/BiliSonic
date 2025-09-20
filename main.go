@@ -39,7 +39,10 @@ func main() {
 	// router.HEAD("/rest/getCoverArt", headCoverArtHandler)
 	router.GET("/rest/stream", StreamHandlerXML)
 	router.GET("rest/scrobble", PingHandlerXML)
-	// router.GET("rest/getStarred2", starredHandlerXML)
+	router.GET("/rest/getStarred", StarredHandlerXML)
+	router.GET("/rest/star", StarHandlerXML)
+	router.GET("/rest/unstar", UnstarHandlerXML)
+	router.GET("/rest/getAlbumList2", StarHandlerXML)
 
 	log.Println("OpenSubsonic proxy running at :8080")
 	router.Run()

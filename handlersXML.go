@@ -25,7 +25,23 @@ type SubsonicResponseXML struct {
 	SearchResult3 *SearchResultXML  `xml:"searchResult3,omitempty"`
 	Song          *SongXML          `xml:"song,omitempty"`
 	Starred2      *SearchResultXML  `xml:"starred2,omitempty"`
+	AlbumList2    *AlbumList2XML    `xml:"albumList2,omitempty"`
 	Error         *SubsonicErrorXML `xml:"error,omitempty"`
+}
+
+type AlbumList2XML struct {
+	Album []AlbumXML `xml:"album,omitempty"`
+}
+
+type AlbumXML struct {
+	ID         string `xml:"id,attr"`
+	Name       string `xml:"name,attr"`
+	Artist     string `xml:"artist,attr"`
+	ArtistID   string `xml:"artistId,attr"`
+	CoverArt   string `xml:"coverArt,attr"`
+	SongCount  int    `xml:"songCount,attr"`
+	Duration   int    `xml:"duration,attr"`
+	Created    string `xml:"created,attr"`
 }
 
 type SubsonicErrorXML struct {
@@ -193,9 +209,92 @@ func GetSongXML(c *gin.Context) {
 // starred.view
 func StarredHandlerXML(c *gin.Context) {
 	log.Println("starred invoke")
+	cliAny, _ := c.Get("client")
+	client := cliAny.(*bilibili.BilibiliClient)
+
+	songIDs, err := getStarredSongs()
+	if err != nil {
+		log.Println("get starred songs error:", err)
+		resp := SubsonicResponseXML{
+			Status:  "failed",
+			Version: VERSION,
+			Xmlns:   "http://subsonic.org/restapi",
+			Error: &SubsonicErrorXML{
+				Code:    50,
+				Message: err.Error(),
+			},
+		}
+		c.XML(http.StatusInternalServerError, resp)
+		return
+	}
+
+	var songs []SongXML
+	for _, id := range songIDs {
+		video, err := client.GetVideoInfo(id)
+		if err != nil {
+			log.Println("get video info error:", err)
+			// Skip this song if there's an error
+			continue
+		}
+		songs = append(songs, SongFromXML(video))
+	}
+
 	resp := createSubsonicOkResponseXML()
 	resp.Starred2 = &SearchResultXML{
-		Song: []SongXML{},
+		Song: songs,
+	}
+	c.XML(http.StatusOK, resp)
+}
+
+// star.view
+func StarHandlerXML(c *gin.Context) {
+	log.Println("star invoke")
+	id := c.Query("id")
+	if err := starSong(id); err != nil {
+		log.Println("star song error:", err)
+		resp := SubsonicResponseXML{
+			Status:  "failed",
+			Version: VERSION,
+			Xmlns:   "http://subsonic.org/restapi",
+			Error: &SubsonicErrorXML{
+				Code:    50,
+				Message: err.Error(),
+			},
+		}
+		c.XML(http.StatusInternalServerError, resp)
+		return
+	}
+	resp := createSubsonicOkResponseXML()
+	c.XML(http.StatusOK, resp)
+}
+
+// unstar.view
+func UnstarHandlerXML(c *gin.Context) {
+	log.Println("unstar invoke")
+	id := c.Query("id")
+	if err := unstarSong(id); err != nil {
+		log.Println("unstar song error:", err)
+		resp := SubsonicResponseXML{
+			Status:  "failed",
+			Version: VERSION,
+			Xmlns:   "http://subsonic.org/restapi",
+			Error: &SubsonicErrorXML{
+				Code:    50,
+				Message: err.Error(),
+			},
+		}
+		c.XML(http.StatusInternalServerError, resp)
+		return
+	}
+	resp := createSubsonicOkResponseXML()
+	c.XML(http.StatusOK, resp)
+}
+
+func GetAlbumList2HandlerXML(c *gin.Context) {
+	log.Println("getAlbumList2 invoke")
+	resp := createSubsonicOkResponseXML()
+	resp.AlbumList2 = &AlbumList2XML{
+		Album: []AlbumXML{},
 	}
 	c.XML(http.StatusOK, resp)
 }

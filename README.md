@@ -1,6 +1,7 @@
 基于OpenSubsonic协议的bilibili音频后端
 
-
+### 编译
+> GOOS=linux GOARCH=amd64 go build -o subsonic .    
 
 ### 鸣谢：
 
