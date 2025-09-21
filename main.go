@@ -43,6 +43,12 @@ func main() {
 	router.GET("/rest/star", StarHandlerXML)
 	router.GET("/rest/unstar", UnstarHandlerXML)
 	router.GET("/rest/getAlbumList2", StarHandlerXML)
+	router.GET("/rest/getPlaylists.view", GetPlaylistsHandlerXML)
+	router.GET("/rest/createPlaylist.view", CreatePlaylistHandlerXML)
+	router.GET("/rest/getPlaylist.view", GetPlaylistHandlerXML)
+	router.GET("/rest/getPlaylists", GetPlaylistsHandlerXML)
+	router.GET("/rest/createPlaylist", CreatePlaylistHandlerXML)
+	router.GET("/rest/getPlaylist", GetPlaylistHandlerXML)
 
 	log.Println("OpenSubsonic proxy running at :8080")
 	router.Run()

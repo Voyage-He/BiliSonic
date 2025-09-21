@@ -274,3 +274,63 @@ func convertToSeconds(duration string) (int, error) {
 	seconds = minutes*60 + seconds
 	return seconds, nil
 }
+
+type BilibiliFavListResponse struct {
+	Data struct {
+		Medias  []BilibiliFavMedia `json:"medias"`
+		HasMore bool               `json:"has_more"`
+	} `json:"data"`
+}
+
+type BilibiliFavMedia struct {
+	Title    string `json:"title"`
+	Duration int    `json:"duration"`
+	Cover    string `json:"cover"`
+	BvID     string `json:"bvid"`
+	Upper    struct {
+		Name string `json:"name"`
+	} `json:"upper"`
+}
+
+func (client *BilibiliClient) GetFavoriteList(mediaId string) ([]BilibiliVideo, error) {
+	var allVideos []BilibiliVideo
+	pn := 1
+	for {
+		queryURL := "https://api.bilibili.com/x/v3/fav/resource/list"
+		queryParams := url.Values{}
+		queryParams.Add("media_id", mediaId)
+		queryParams.Add("ps", "20") // Page size, 20 is a safe value
+		queryParams.Add("pn", strconv.Itoa(pn))
+
+		req, _ := http.NewRequest("GET", queryURL+"?"+queryParams.Encode(), nil)
+		req.Header.Set("User-Agent", "Mozilla/5.0")
+
+		resp, err := client.Client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		var jsonResponse BilibiliFavListResponse
+		if err := json.Unmarshal(body, &jsonResponse); err != nil {
+			return nil, fmt.Errorf("failed to parse response: %v", err)
+		}
+
+		for _, media := range jsonResponse.Data.Medias {
+			allVideos = append(allVideos, BilibiliVideo{
+				ID:       media.BvID,
+				Title:    removeHTMLTags(media.Title),
+				Author:   media.Upper.Name,
+				Pic:      media.Cover,
+				Duration: media.Duration,
+			})
+		}
+
+		if !jsonResponse.Data.HasMore {
+			break
+		}
+		pn++
+	}
+	return allVideos, nil
+}

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"example/subsonic/bilibili"
 
@@ -26,6 +27,8 @@ type SubsonicResponseXML struct {
 	Song          *SongXML          `xml:"song,omitempty"`
 	Starred2      *SearchResultXML  `xml:"starred2,omitempty"`
 	AlbumList2    *AlbumList2XML    `xml:"albumList2,omitempty"`
+	Playlists     *PlaylistsXML     `xml:"playlists,omitempty"`
+	Playlist      *PlaylistXML      `xml:"playlist,omitempty"`
 	Error         *SubsonicErrorXML `xml:"error,omitempty"`
 }
 
@@ -42,6 +45,23 @@ type AlbumXML struct {
 	SongCount  int    `xml:"songCount,attr"`
 	Duration   int    `xml:"duration,attr"`
 	Created    string `xml:"created,attr"`
+}
+
+type PlaylistsXML struct {
+	Playlist []PlaylistXML `xml:"playlist"`
+}
+
+type PlaylistXML struct {
+	ID        string `xml:"id,attr"`
+	Name      string `xml:"name,attr"`
+	SongCount int    `xml:"songCount,attr"`
+	Duration  int    `xml:"duration,attr"`
+	Public    bool   `xml:"public,attr"`
+	Owner     string `xml:"owner,attr"`
+	Created   string `xml:"created,attr"`
+	Changed   string `xml:"changed,attr"`
+	CoverArt  string `xml:"coverArt,attr"`
+	Entry     []SongXML `xml:"entry,omitempty"`
 }
 
 type SubsonicErrorXML struct {
@@ -373,4 +393,130 @@ func StreamHandlerXML(c *gin.Context) {
 		}
 		return err == nil
 	})
+}
+
+func GetPlaylistsHandlerXML(c *gin.Context) {
+	log.Println("getPlaylists invoke")
+	playlists, err := getPlaylists()
+	if err != nil {
+		// Handle error
+		c.XML(http.StatusInternalServerError, nil)
+		return
+	}
+
+	var playlistsXML []PlaylistXML
+	for _, p := range playlists {
+		// Here you might want to fetch additional details for each playlist
+		// like song count, duration, etc. For now, we'll use dummy data.
+		playlistsXML = append(playlistsXML, PlaylistXML{
+			ID:        p.ID,
+			Name:      p.Name,
+			SongCount: 0, // Placeholder
+			Duration:  0, // Placeholder
+			Public:    true,
+			Owner:     "voyage",
+		})
+	}
+
+	resp := createSubsonicOkResponseXML()
+	resp.Playlists = &PlaylistsXML{Playlist: playlistsXML}
+	c.XML(http.StatusOK, resp)
+}
+
+func CreatePlaylistHandlerXML(c *gin.Context) {
+	log.Println("createPlaylist invoke")
+	name := c.Query("name")
+	// The name is expected to be in the format "bili-someName-mediaId"
+	parts := strings.Split(name, "-")
+	if len(parts) < 3 || parts[0] != "bili" {
+		// Handle invalid name format
+		c.XML(http.StatusBadRequest, nil)
+		return
+	}
+	mediaId := parts[len(parts)-1]
+	playlistName := strings.Join(parts[1:len(parts)-1], "-")
+
+	_, err := createPlaylist(playlistName, mediaId)
+	if err != nil {
+		// Handle error
+		c.XML(http.StatusInternalServerError, nil)
+		return
+	}
+
+	// According to Subsonic API, the createPlaylist response should contain the created playlist.
+	// So we will fetch the playlist info and return it.
+	playlists, _ := getPlaylists()
+	var createdPlaylist PlaylistXML
+	for _, p := range playlists {
+		if p.MediaID == mediaId {
+			createdPlaylist = PlaylistXML{
+				ID:        p.ID,
+				Name:      p.Name,
+				SongCount: 0, // Placeholder
+				Duration:  0, // Placeholder
+				Public:    true,
+				Owner:     "voyage",
+			}
+			break
+		}
+	}
+
+	resp := createSubsonicOkResponseXML()
+	resp.Playlists = &PlaylistsXML{Playlist: []PlaylistXML{createdPlaylist}}
+	c.XML(http.StatusOK, resp)
+}
+
+func GetPlaylistHandlerXML(c *gin.Context) {
+	log.Println("getPlaylist invoke")
+	id := c.Query("id")
+	// id is "bili-<mediaId>"
+	parts := strings.Split(id, "-")
+	if len(parts) < 2 || parts[0] != "bili" {
+		// Handle invalid id
+		c.XML(http.StatusBadRequest, nil)
+		return
+	}
+	mediaId := parts[1]
+
+	cliAny, _ := c.Get("client")
+	client := cliAny.(*bilibili.BilibiliClient)
+
+	videos, err := client.GetFavoriteList(mediaId)
+	if err != nil {
+		// Handle error
+		c.XML(http.StatusInternalServerError, nil)
+		return
+	}
+
+	var songsXML []SongXML
+	var totalDuration int
+	for _, v := range videos {
+		songsXML = append(songsXML, SongFromXML(&v))
+		totalDuration += v.Duration
+	}
+
+	// We need the playlist name. We can get it from the stored playlists.
+	playlists, _ := getPlaylists()
+	var playlistName string
+	for _, p := range playlists {
+		if p.MediaID == mediaId {
+			playlistName = p.Name
+			break
+		}
+	}
+
+
+	playlist := PlaylistXML{
+		ID:        id,
+		Name:      playlistName,
+		SongCount: len(videos),
+		Duration:  totalDuration,
+		Public:    true,
+		Owner:     "voyage",
+		Entry:     songsXML,
+	}
+
+	resp := createSubsonicOkResponseXML()
+	resp.Playlist = &playlist
+	c.XML(http.StatusOK, resp)
 }
